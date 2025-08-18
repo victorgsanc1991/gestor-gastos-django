@@ -2,10 +2,13 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # La página raíz ahora apunta al dashboard, que actuará como página de inicio
+    # Nuevas URLs para el login
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    
+    # La página raíz ahora es el dashboard
     path('', views.dashboard, name='dashboard'),
     
-    # Las otras páginas tienen sus propias URLs
     path('subir/', views.subir_movimientos, name='subir'),
     path('transacciones/', views.listar_transacciones, name='listar'),
     path('actualizar-categoria/', views.actualizar_categoria, name='actualizar_categoria'),

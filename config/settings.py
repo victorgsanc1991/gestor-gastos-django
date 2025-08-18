@@ -14,9 +14,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-una-clave-insegura-para-desarrollo')
 
-DEBUG = os.environ.get('RENDER', 'False') != 'True'
+# El modo DEBUG será 'False' en producción, pero 'True' en local.
+# Usamos una variable de entorno para distinguirlos.
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+
+# --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+# Lista de dominios permitidos
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -55,16 +61,13 @@ ROOT_URLCONF = 'config.urls'
 
 
 # ==============================================================================
-# PLANTILLAS (TEMPLATES) - VERSIÓN CORRECTA Y ESTÁNDAR
+# PLANTILLAS (TEMPLATES)
 # ==============================================================================
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        # DIRS se queda vacío.
         'DIRS': [],
-        # ¡LA CLAVE! Volvemos a activar la búsqueda automática de carpetas 'templates'.
-        # Esto arreglará el admin y funcionará para nuestra app si la estructura es correcta.
         'APP_DIRS': True, 
         'OPTIONS': {
             'context_processors': [
@@ -109,13 +112,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # ==============================================================================
-# INTERNACIONALIZACIÓN
+# INTERNACIONALIZACIÓN Y LOGIN
 # ==============================================================================
 
 LANGUAGE_CODE = 'es-es'
 TIME_ZONE = 'Europe/Madrid'
 USE_I18N = True
 USE_TZ = True
+
+LOGIN_URL = '/login/' # URL para nuestro login personalizado
 
 
 # ==============================================================================
