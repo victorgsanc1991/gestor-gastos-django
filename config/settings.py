@@ -117,6 +117,7 @@ TIME_ZONE = 'Europe/Madrid'
 USE_I18N = True
 USE_TZ = True
 
+# Este es un comentario para forzar una actualización.
 
 # ==============================================================================
 # ARCHIVOS ESTÁTICOS (CSS, JAVASCRIPT, IMÁGENES)
