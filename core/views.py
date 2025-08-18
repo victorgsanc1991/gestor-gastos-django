@@ -1,61 +1,22 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Transaccion, Categoria, Regla
-import csv
-import io
+import csv, io
 from datetime import datetime
 from django.db.models import Sum, Q
 from django.utils import timezone
 import json
 from django.db.models.functions import TruncMonth
-from functools import wraps
+from django.contrib.auth.decorators import login_required
 
-# ==============================================================================
-# DECORADOR DE LOGIN PERSONALIZADO
-# ==============================================================================
-def login_requerido(view_func):
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        if not request.session.get('autenticado'):
-            return redirect('login')
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
-
-# ==============================================================================
-# VISTAS DE LOGIN Y LOGOUT
-# ==============================================================================
-def login_view(request):
-    if request.session.get('autenticado'):
-        return redirect('dashboard')
-
-    if request.method == 'POST':
-        password = request.POST.get('password')
-        if password == 'RoseMcgowan1991':
-            request.session['autenticado'] = True
-            # Redirigir al 'next' si existe, si no al dashboard
-            next_url = request.GET.get('next', 'dashboard')
-            return redirect(next_url)
-        else:
-            messages.error(request, 'Contraseña incorrecta.')
-    return render(request, 'core/login.html')
-
-def logout_view(request):
-    try:
-        del request.session['autenticado']
-    except KeyError:
-        pass
-    return redirect('login')
-
-# ==============================================================================
-# VISTAS DE LA APLICACIÓN
-# ==============================================================================
-@login_requerido
+@login_required
 def subir_movimientos(request):
     if request.method == 'POST':
         if 'csv_file' not in request.FILES: messages.error(request, "No se seleccionó ningún archivo."); return redirect('subir')
         csv_file = request.FILES['csv_file']
         if not csv_file.name.endswith('.csv'): messages.error(request, "El archivo debe tener formato .csv"); return redirect('subir')
         try:
+            Transaccion.objects.all().delete()
             data_set = csv_file.read().decode('utf-8'); io_string = io.StringIO(data_set)
             for _ in range(5): next(io_string)
             reader = csv.reader(io_string, delimiter=';'); next(reader)
@@ -77,7 +38,7 @@ def subir_movimientos(request):
         return redirect('subir')
     return render(request, 'core/subir.html')
 
-@login_requerido
+@login_required
 def listar_transacciones(request):
     transacciones = Transaccion.objects.all().order_by('-fecha_operacion', '-id')
     categoria_id_filtro = request.GET.get('categoria'); mes_filtro = request.GET.get('mes'); año_filtro = request.GET.get('año'); tipo_filtro = request.GET.get('tipo')
@@ -91,7 +52,7 @@ def listar_transacciones(request):
     contexto = { 'transacciones': transacciones, 'categorias': categorias, }
     return render(request, 'core/listar.html', contexto)
 
-@login_requerido
+@login_required
 def actualizar_categoria(request):
     if request.method == 'POST':
         transaccion_id = request.POST.get('transaccion_id'); categoria_id = request.POST.get('categoria_id')
@@ -103,7 +64,7 @@ def actualizar_categoria(request):
         except Exception as e: messages.error(request, f'Ocurrió un error: {e}')
     return redirect('listar')
 
-@login_requerido
+@login_required
 def dashboard(request):
     año_seleccionado = request.GET.get('año', timezone.now().year); mes_seleccionado = request.GET.get('mes', timezone.now().month)
     año_seleccionado = int(año_seleccionado); mes_seleccionado = int(mes_seleccionado)
@@ -128,14 +89,14 @@ def dashboard(request):
     }
     return render(request, 'core/dashboard.html', contexto)
 
-@login_requerido
+@login_required
 def eliminar_transaccion(request, transaccion_id):
     if request.method == 'POST':
         try: transaccion = Transaccion.objects.get(id=transaccion_id); transaccion.delete(); messages.success(request, f"Transacción '{transaccion.concepto_original}' eliminada con éxito.")
         except Transaccion.DoesNotExist: messages.error(request, "La transacción que intentas eliminar no existe.")
     return redirect('listar')
 
-@login_requerido
+@login_required
 def eliminar_multiples(request):
     if request.method == 'POST':
         ids_a_borrar = request.POST.getlist('transaccion_ids')

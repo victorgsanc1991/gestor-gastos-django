@@ -6,6 +6,8 @@ class CoreConfig(AppConfig):
     name = 'core'
 
     def ready(self):
+        # Esta función se ejecuta cada vez que la aplicación arranca.
+        # Solo intentará crear el superusuario si las variables de entorno existen.
         from django.contrib.auth.models import User
         
         username = os.environ.get('ADMIN_USER')
