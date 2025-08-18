@@ -11,13 +11,13 @@ from django.db.models.functions import TruncMonth
 from functools import wraps
 
 # ==============================================================================
-# DECORADOR DE LOGIN PERSONALIZADO (NUESTRO "PORTERO")
+# DECORADOR DE LOGIN PERSONALIZADO
 # ==============================================================================
 def login_requerido(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.session.get('autenticado'):
-            return redirect('login') # Si no hay sesión, redirige a nuestra página de login
+            return redirect('login')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
@@ -26,14 +26,15 @@ def login_requerido(view_func):
 # ==============================================================================
 def login_view(request):
     if request.session.get('autenticado'):
-        return redirect('dashboard') # Si ya está logueado, va al dashboard
+        return redirect('dashboard')
 
     if request.method == 'POST':
         password = request.POST.get('password')
-        # La contraseña "maestra" la definimos aquí. ¡Cámbiala si quieres!
         if password == 'RoseMcgowan1991':
             request.session['autenticado'] = True
-            return redirect('dashboard')
+            # Redirigir al 'next' si existe, si no al dashboard
+            next_url = request.GET.get('next', 'dashboard')
+            return redirect(next_url)
         else:
             messages.error(request, 'Contraseña incorrecta.')
     return render(request, 'core/login.html')
@@ -46,11 +47,10 @@ def logout_view(request):
     return redirect('login')
 
 # ==============================================================================
-# VISTAS DE LA APLICACIÓN (AHORA PROTEGIDAS CON NUESTRO DECORADOR)
+# VISTAS DE LA APLICACIÓN
 # ==============================================================================
 @login_requerido
 def subir_movimientos(request):
-    # ... (el contenido de la función es el mismo)
     if request.method == 'POST':
         if 'csv_file' not in request.FILES: messages.error(request, "No se seleccionó ningún archivo."); return redirect('subir')
         csv_file = request.FILES['csv_file']
@@ -79,7 +79,6 @@ def subir_movimientos(request):
 
 @login_requerido
 def listar_transacciones(request):
-    # ... (el contenido de la función es el mismo)
     transacciones = Transaccion.objects.all().order_by('-fecha_operacion', '-id')
     categoria_id_filtro = request.GET.get('categoria'); mes_filtro = request.GET.get('mes'); año_filtro = request.GET.get('año'); tipo_filtro = request.GET.get('tipo')
     if categoria_id_filtro:
@@ -94,7 +93,6 @@ def listar_transacciones(request):
 
 @login_requerido
 def actualizar_categoria(request):
-    # ... (el contenido de la función es el mismo)
     if request.method == 'POST':
         transaccion_id = request.POST.get('transaccion_id'); categoria_id = request.POST.get('categoria_id')
         try:
@@ -107,7 +105,6 @@ def actualizar_categoria(request):
 
 @login_requerido
 def dashboard(request):
-    # ... (el contenido de la función es el mismo)
     año_seleccionado = request.GET.get('año', timezone.now().year); mes_seleccionado = request.GET.get('mes', timezone.now().month)
     año_seleccionado = int(año_seleccionado); mes_seleccionado = int(mes_seleccionado)
     transacciones_mes = Transaccion.objects.filter(fecha_operacion__year=año_seleccionado, fecha_operacion__month=mes_seleccionado)
@@ -133,7 +130,6 @@ def dashboard(request):
 
 @login_requerido
 def eliminar_transaccion(request, transaccion_id):
-    # ... (el contenido de la función es el mismo)
     if request.method == 'POST':
         try: transaccion = Transaccion.objects.get(id=transaccion_id); transaccion.delete(); messages.success(request, f"Transacción '{transaccion.concepto_original}' eliminada con éxito.")
         except Transaccion.DoesNotExist: messages.error(request, "La transacción que intentas eliminar no existe.")
@@ -141,7 +137,6 @@ def eliminar_transaccion(request, transaccion_id):
 
 @login_requerido
 def eliminar_multiples(request):
-    # ... (el contenido de la función es el mismo)
     if request.method == 'POST':
         ids_a_borrar = request.POST.getlist('transaccion_ids')
         if not ids_a_borrar: messages.warning(request, "No has seleccionado ninguna transacción para eliminar.")

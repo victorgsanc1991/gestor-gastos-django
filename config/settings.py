@@ -141,3 +141,7 @@ STORAGES = {
 # ==============================================================================
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# ... (todo el archivo como te lo pasé antes) ...
+
+# Al final del archivo, asegúrate de que esta línea está presente:
+LOGIN_URL = '/login/'
