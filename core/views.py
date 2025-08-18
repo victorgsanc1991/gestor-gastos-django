@@ -62,11 +62,12 @@ def subir_movimientos(request):
 
         return redirect('subir')
 
-    return render(request, 'core/subir.html')
+    # --- CAMBIO AQUÍ ---
+    return render(request, 'subir.html')
 
 
 # ==============================================================================
-# VISTA PARA LISTAR LAS TRANSACCIONES (AHORA CON FILTROS MEJORADOS)
+# VISTA PARA LISTAR LAS TRANSACCIONES
 # ==============================================================================
 def listar_transacciones(request):
     transacciones = Transaccion.objects.all()
@@ -77,12 +78,9 @@ def listar_transacciones(request):
     tipo_filtro = request.GET.get('tipo')
 
     if categoria_id_filtro:
-        # --- ¡AQUÍ ESTÁ EL CAMBIO! ---
         if categoria_id_filtro == '0':
-            # Si el ID es 0, buscamos transacciones sin categoría (NULL)
             transacciones = transacciones.filter(categoria__isnull=True)
         else:
-            # Si es cualquier otro ID, filtramos normalmente
             transacciones = transacciones.filter(categoria__id=categoria_id_filtro)
 
     if mes_filtro and año_filtro:
@@ -97,7 +95,8 @@ def listar_transacciones(request):
         'transacciones': transacciones,
         'categorias': categorias,
     }
-    return render(request, 'core/listar.html', contexto)
+    # --- CAMBIO AQUÍ ---
+    return render(request, 'listar.html', contexto)
 
 
 # ==============================================================================
@@ -176,7 +175,8 @@ def dashboard(request):
         'transacciones_mes': transacciones_mes,
     }
     
-    return render(request, 'core/dashboard.html', contexto)
+    # --- CAMBIO AQUÍ ---
+    return render(request, 'dashboard.html', contexto)
 
 
 # ==============================================================================

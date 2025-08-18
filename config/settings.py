@@ -55,16 +55,17 @@ ROOT_URLCONF = 'config.urls'
 
 
 # ==============================================================================
-# PLANTILLAS (TEMPLATES)
+# PLANTILLAS (TEMPLATES) - VERSIÓN CORREGIDA
 # ==============================================================================
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        # --- ¡AQUÍ ESTÁ LA LÍNEA AÑADIDA! ---
-        # Le decimos a Django que busque plantillas en la carpeta 'core/templates'.
-        'DIRS': [BASE_DIR / 'core/templates'],
-        'APP_DIRS': True,
+        # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+        # Apuntamos directamente a la carpeta donde están nuestros HTML.
+        'DIRS': [BASE_DIR / 'core/templates/core'],
+        # Desactivamos la búsqueda automática para evitar ambigüedades.
+        'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
