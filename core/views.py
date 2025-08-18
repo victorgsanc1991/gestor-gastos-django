@@ -24,6 +24,9 @@ def subir_movimientos(request):
             return redirect('subir')
 
         try:
+            # Vaciar la tabla de transacciones antes de una nueva subida
+            # Transaccion.objects.all().delete() # Descomenta esta línea si quieres que cada subida reemplace los datos anteriores
+
             data_set = csv_file.read().decode('utf-8')
             io_string = io.StringIO(data_set)
             for _ in range(5): next(io_string)
@@ -62,8 +65,7 @@ def subir_movimientos(request):
 
         return redirect('subir')
 
-    # --- CAMBIO AQUÍ ---
-    return render(request, 'subir.html')
+    return render(request, 'core/subir.html')
 
 
 # ==============================================================================
@@ -95,8 +97,7 @@ def listar_transacciones(request):
         'transacciones': transacciones,
         'categorias': categorias,
     }
-    # --- CAMBIO AQUÍ ---
-    return render(request, 'listar.html', contexto)
+    return render(request, 'core/listar.html', contexto)
 
 
 # ==============================================================================
@@ -175,8 +176,7 @@ def dashboard(request):
         'transacciones_mes': transacciones_mes,
     }
     
-    # --- CAMBIO AQUÍ ---
-    return render(request, 'dashboard.html', contexto)
+    return render(request, 'core/dashboard.html', contexto)
 
 
 # ==============================================================================

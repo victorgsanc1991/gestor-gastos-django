@@ -55,17 +55,17 @@ ROOT_URLCONF = 'config.urls'
 
 
 # ==============================================================================
-# PLANTILLAS (TEMPLATES) - VERSIÓN CORREGIDA
+# PLANTILLAS (TEMPLATES) - VERSIÓN CORRECTA Y ESTÁNDAR
 # ==============================================================================
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-        # Apuntamos directamente a la carpeta donde están nuestros HTML.
-        'DIRS': [BASE_DIR / 'core/templates/core'],
-        # Desactivamos la búsqueda automática para evitar ambigüedades.
-        'APP_DIRS': False,
+        # DIRS se queda vacío.
+        'DIRS': [],
+        # ¡LA CLAVE! Volvemos a activar la búsqueda automática de carpetas 'templates'.
+        # Esto arreglará el admin y funcionará para nuestra app si la estructura es correcta.
+        'APP_DIRS': True, 
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -117,7 +117,6 @@ TIME_ZONE = 'Europe/Madrid'
 USE_I18N = True
 USE_TZ = True
 
-# Este es un comentario para forzar una actualización.
 
 # ==============================================================================
 # ARCHIVOS ESTÁTICOS (CSS, JAVASCRIPT, IMÁGENES)
