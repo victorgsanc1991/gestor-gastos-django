@@ -1,150 +1,63 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Financiero</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; color: #333; background-color: #f4f7f6; }
-        nav { display: flex; justify-content: center; gap: 20px; padding: 10px; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        nav a { text-decoration: none; color: #007bff; font-weight: bold; font-size: 16px; padding: 8px 12px; border-radius: 5px; transition: background-color 0.2s; }
-        nav a:hover { background-color: #e9ecef; }
-        h1, h2 { color: #343a40; }
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-        .card { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .kpi-container { grid-column: 1 / -1; display: flex; gap: 20px; }
-        .kpi-card { flex-grow: 1; text-align: center; }
-        .kpi-card a { text-decoration: none; color: inherit; }
-        .kpi-card h2 { margin: 0; color: #6c757d; font-size: 14px; text-transform: uppercase; }
-        .kpi-card .amount { font-size: 28px; font-weight: bold; margin-top: 5px; }
-        .ingreso { color: #28a745; }
-        .gasto { color: #dc3545; }
-        .balance { color: #17a2b8; }
-        .selector-form { margin-bottom: 20px; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: center; }
-        .selector-form select, .selector-form button { font-size: 16px; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
-        .full-width { grid-column: 1 / -1; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 8px 4px; border-bottom: 1px solid #eee; font-size: 14px; text-align: left; }
-        th { font-weight: bold; }
-        tr:last-child td { border-bottom: none; }
-    </style>
-</head>
-<body>
-    <nav>
-        <a href="{% url 'subir' %}">Subir Archivo</a>
-        <a href="{% url 'listar' %}">Ver Transacciones</a>
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        {% if user.is_authenticated and user.is_staff %}<a href="/admin" target="_blank" style="color: #6c757d;">Admin</a>{% endif %}
-    </nav>
+{% extends "core/base.html" %}
 
+{% block title %}Dashboard Financiero{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+    .card { background-color: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+    .kpi-container { grid-column: 1 / -1; display: flex; gap: 20px; }
+    .kpi-card { flex-grow: 1; text-align: center; }
+    .kpi-card a { text-decoration: none; color: inherit; }
+    .kpi-card h2 { margin: 0; color: #6c757d; font-size: 14px; text-transform: uppercase; }
+    .kpi-card .amount { font-size: 28px; font-weight: bold; margin-top: 5px; }
+    .ingreso { color: #28a745; }
+    .gasto { color: #dc3545; }
+    .balance { color: #17a2b8; }
+    .selector-form { margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+    .selector-form select, .selector-form button { font-size: 16px; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+    .full-width { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 4px; border-bottom: 1px solid #eee; font-size: 14px; text-align: left; }
+    th { font-weight: bold; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>Dashboard</h1>
     <form class="selector-form" method="get" action="{% url 'dashboard' %}">
         <label for="mes">Seleccionar Mes:</label>
         <select name="mes" id="mes">{% for mes_num in meses_disponibles %}<option value="{{ mes_num }}" {% if mes_num == mes_seleccionado %}selected{% endif %}>{{ mes_num }}</option>{% endfor %}</select>
         <select name="año" id="año">{% for anio_num in años_disponibles %}<option value="{{ anio_num }}" {% if anio_num == año_seleccionado %}selected{% endif %}>{{ anio_num }}</option>{% endfor %}</select>
         <button type="submit">Filtrar</button>
     </form>
-
     <div class="kpi-container card">
-        <div class="kpi-card">
-            <h2>Ingresos</h2>
-            <a href="{% url 'listar' %}?tipo=ingresos&mes={{ mes_seleccionado }}&año={{ año_seleccionado }}">
-                <p class="amount ingreso">+{{ ingresos_totales|floatformat:2 }} €</p>
-            </a>
-        </div>
-        <div class="kpi-card">
-            <h2>Gastos</h2>
-            <a href="{% url 'listar' %}?tipo=gastos&mes={{ mes_seleccionado }}&año={{ año_seleccionado }}">
-                <p class="amount gasto">{{ gastos_totales|floatformat:2 }} €</p>
-            </a>
-        </div>
-        <div class="kpi-card">
-            <h2>Balance</h2>
-            <p class="amount balance">{{ balance|floatformat:2 }} €</p>
-        </div>
+        <div class="kpi-card"><h2>Ingresos</h2><a href="{% url 'listar' %}?tipo=ingresos&mes={{ mes_seleccionado }}&año={{ año_seleccionado }}"><p class="amount ingreso">+{{ ingresos_totales|floatformat:2 }} €</p></a></div>
+        <div class="kpi-card"><h2>Gastos</h2><a href="{% url 'listar' %}?tipo=gastos&mes={{ mes_seleccionado }}&año={{ año_seleccionado }}"><p class="amount gasto">{{ gastos_totales|floatformat:2 }} €</p></a></div>
+        <div class="kpi-card"><h2>Balance</h2><p class="amount balance">{{ balance|floatformat:2 }} €</p></div>
     </div>
-    
     <div class="dashboard-grid">
-        <div class="card">
-            <h2>Gastos por Categoría (Mes Seleccionado)</h2>
-            <canvas id="gastosChart"></canvas>
-        </div>
-        <div class="card">
-            <h2>Evolución Mensual (Últimos 6 Meses)</h2>
-            <canvas id="evolucionChart"></canvas>
-        </div>
-        <div class="card full-width">
-            <h2>Detalle de Gastos del Mes</h2>
-            <table>
-                <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Importe</th></tr></thead>
-                <tbody>
-                {% for gasto in transacciones_mes %}
-                    {% if gasto.importe < 0 %}
-                    <tr>
-                        <td>{{ gasto.fecha_operacion|date:"d/m/Y" }}</td>
-                        <td>{{ gasto.concepto_original }}</td>
-                        <td>{{ gasto.categoria.nombre|default:"Sin Categoría" }}</td>
-                        <td class="gasto">{{ gasto.importe|floatformat:2 }} €</td>
-                    </tr>
-                    {% endif %}
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="card full-width">
-            <h2>Detalle de Ingresos del Mes</h2>
-            <table>
-                 <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Importe</th></tr></thead>
-                <tbody>
-                {% for ingreso in transacciones_mes %}
-                    {% if ingreso.importe > 0 %}
-                    <tr>
-                        <td>{{ ingreso.fecha_operacion|date:"d/m/Y" }}</td>
-                        <td>{{ ingreso.concepto_original }}</td>
-                        <td>{{ ingreso.categoria.nombre|default:"Sin Categoría" }}</td>
-                        <td class="ingreso">+{{ ingreso.importe|floatformat:2 }} €</td>
-                    </tr>
-                    {% endif %}
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <div class="card"><h2>Gastos por Categoría (Mes Seleccionado)</h2><canvas id="gastosChart"></canvas></div>
+        <div class="card"><h2>Evolución Mensual (Últimos 6 Meses)</h2><canvas id="evolucionChart"></canvas></div>
+        <div class="card full-width"><h2>Detalle de Gastos del Mes</h2><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Importe</th></tr></thead><tbody>{% for gasto in transacciones_mes %}{% if gasto.importe < 0 %}<tr><td>{{ gasto.fecha_operacion|date:"d/m/Y" }}</td><td>{{ gasto.concepto_original }}</td><td>{{ gasto.categoria.nombre|default:"Sin Categoría" }}</td><td class="gasto">{{ gasto.importe|floatformat:2 }} €</td></tr>{% endif %}{% endfor %}</tbody></table></div>
+        <div class="card full-width"><h2>Detalle de Ingresos del Mes</h2><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Importe</th></tr></thead><tbody>{% for ingreso in transacciones_mes %}{% if ingreso.importe > 0 %}<tr><td>{{ ingreso.fecha_operacion|date:"d/m/Y" }}</td><td>{{ ingreso.concepto_original }}</td><td>{{ ingreso.categoria.nombre|default:"Sin Categoría" }}</td><td class="ingreso">+{{ ingreso.importe|floatformat:2 }} €</td></tr>{% endif %}{% endfor %}</tbody></table></div>
     </div>
+{% endblock %}
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const ctxEvolucion = document.getElementById('evolucionChart').getContext('2d');
-            const labelsEvolucion = JSON.parse('{{ labels_evolucion|escapejs }}');
-            const dataIngresosEvolucion = JSON.parse('{{ data_ingresos_evolucion|escapejs }}');
-            const dataGastosEvolucion = JSON.parse('{{ data_gastos_evolucion|escapejs }}');
-            if (labelsEvolucion.length > 0) {
-                new Chart(ctxEvolucion, { type: 'bar', data: { labels: labelsEvolucion, datasets: [ { label: 'Ingresos', data: dataIngresosEvolucion, backgroundColor: 'rgba(75, 192, 192, 0.6)' }, { label: 'Gastos', data: dataGastosEvolucion, backgroundColor: 'rgba(255, 99, 132, 0.6)' } ] }, options: { scales: { y: { beginAtZero: true } } } });
-            } else { document.getElementById('evolucionChart').parentElement.innerHTML += '<p>No hay datos suficientes.</p>'; }
-
-            const ctxGastos = document.getElementById('gastosChart').getContext('2d');
-            const labelsGastos = JSON.parse('{{ labels_grafico_gastos_nombres|escapejs }}');
-            const dataGastos = JSON.parse('{{ data_grafico_gastos_valores|escapejs }}');
-            const categoriaIds = JSON.parse('{{ labels_grafico_gastos_ids|escapejs }}');
-            if (dataGastos.length > 0) {
-                const gastosChart = new Chart(ctxGastos, {
-                    type: 'doughnut', data: { labels: labelsGastos, datasets: [{ data: dataGastos, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'] }] },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { position: 'right' } },
-                        // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
-                        onClick: (evt, elements) => {
-                            if (elements.length > 0) {
-                                const index = elements[0].index;
-                                const categoriaId = categoriaIds[index];
-                                // Ahora redirigimos siempre, sin importar el ID
-                                const url = `{% url 'listar' %}?categoria=${categoriaId}&mes={{ mes_seleccionado }}&año={{ año_seleccionado }}`;
-                                window.location.href = url;
-                            }
-                        }
-                    }
-                });
-            } else { document.getElementById('gastosChart').parentElement.innerHTML += '<p>No hay gastos para mostrar.</p>'; }
-        });
-    </script>
-</body>
-</html>
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctxEvolucion = document.getElementById('evolucionChart').getContext('2d');
+        const labelsEvolucion = JSON.parse('{{ labels_evolucion|escapejs }}');
+        const dataIngresosEvolucion = JSON.parse('{{ data_ingresos_evolucion|escapejs }}');
+        const dataGastosEvolucion = JSON.parse('{{ data_gastos_evolucion|escapejs }}');
+        if (labelsEvolucion.length > 0) { new Chart(ctxEvolucion, { type: 'bar', data: { labels: labelsEvolucion, datasets: [ { label: 'Ingresos', data: dataIngresosEvolucion, backgroundColor: 'rgba(75, 192, 192, 0.6)' }, { label: 'Gastos', data: dataGastosEvolucion, backgroundColor: 'rgba(255, 99, 132, 0.6)' } ] }, options: { scales: { y: { beginAtZero: true } } } }); } else { document.getElementById('evolucionChart').parentElement.innerHTML += '<p>No hay datos suficientes.</p>'; }
+        const ctxGastos = document.getElementById('gastosChart').getContext('2d');
+        const labelsGastos = JSON.parse('{{ labels_grafico_gastos_nombres|escapejs }}');
+        const dataGastos = JSON.parse('{{ data_grafico_gastos_valores|escapejs }}');
+        const categoriaIds = JSON.parse('{{ labels_grafico_gastos_ids|escapejs }}');
+        if (dataGastos.length > 0) { const gastosChart = new Chart(ctxGastos, { type: 'doughnut', data: { labels: labelsGastos, datasets: [{ data: dataGastos, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'] }] }, options: { responsive: true, plugins: { legend: { position: 'right' } }, onClick: (evt, elements) => { if (elements.length > 0) { const index = elements[0].index; const categoriaId = categoriaIds[index]; const url = `{% url 'listar' %}?categoria=${categoriaId}&mes={{ mes_seleccionado }}&año={{ año_seleccionado }}`; window.location.href = url; } } } }); } else { document.getElementById('gastosChart').parentElement.innerHTML += '<p>No hay gastos para mostrar.</p>'; }
+    });
+</script>
+{% endblock %}
