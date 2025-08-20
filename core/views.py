@@ -16,24 +16,40 @@ def subir_movimientos(request):
         csv_file = request.FILES['csv_file']
         if not csv_file.name.endswith('.csv'): messages.error(request, "El archivo debe tener formato .csv"); return redirect('subir')
         try:
-            Transaccion.objects.all().delete()
+            # Transaccion.objects.all().delete() # LÍNEA COMENTADA: Ya no se borran los datos antiguos.
+
             data_set = csv_file.read().decode('utf-8'); io_string = io.StringIO(data_set)
             for _ in range(5): next(io_string)
             reader = csv.reader(io_string, delimiter=';'); next(reader)
-            reglas = Regla.objects.all(); num_transacciones_creadas = 0
+            
+            reglas = Regla.objects.all()
+            num_transacciones_creadas = 0
+            num_transacciones_ignoradas = 0
+
             for row in reader:
                 if len(row) < 9: continue
                 fecha_str, concepto, importe_str = row[2], row[4], row[6]
                 if not fecha_str or not concepto or not importe_str: continue
+                
                 fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
                 importe_obj = float(str(importe_str).replace('.', '').replace(',', '.'))
                 if isinstance(concepto, str) and '\\' in concepto: concepto = concepto.split('\\')[0].strip()
+
+                # LÓGICA ANTI-DUPLICADOS: Comprobamos si ya existe una transacción idéntica
+                if Transaccion.objects.filter(fecha_operacion=fecha_obj, concepto_original=str(concepto), importe=importe_obj).exists():
+                    num_transacciones_ignoradas += 1
+                    continue # Si existe, la saltamos
+
                 categoria_asignada = None
                 for regla in reglas:
                     if regla.palabra_clave.lower() in str(concepto).lower(): categoria_asignada = regla.categoria_destino; break
+                
                 Transaccion.objects.create(fecha_operacion=fecha_obj, concepto_original=str(concepto), importe=importe_obj, categoria=categoria_asignada)
                 num_transacciones_creadas += 1
-            messages.success(request, f"¡Éxito! Se han importado {num_transacciones_creadas} transacciones.")
+
+            # MENSAJE DE ÉXITO MEJORADO
+            messages.success(request, f"¡Éxito! Se han importado {num_transacciones_creadas} nuevas transacciones. Se ignoraron {num_transacciones_ignoradas} duplicadas.")
+
         except Exception as e: messages.error(request, f"Ocurrió un error al procesar el archivo: {e}")
         return redirect('subir')
     return render(request, 'core/subir.html')
@@ -66,8 +82,8 @@ def actualizar_categoria(request):
 
 @login_required
 def dashboard(request):
-    año_seleccionado = request.GET.get('año', timezone.now().year); mes_seleccionado = request.GET.get('mes', timezone.now().month)
-    año_seleccionado = int(año_seleccionado); mes_seleccionado = int(mes_seleccionado)
+    año_seleccionado = request.GET.get('año', timezone.now().year); mes_filtro = request.GET.get('mes')
+    año_seleccionado = int(año_seleccionado); mes_seleccionado = int(mes_filtro or timezone.now().month)
     transacciones_mes = Transaccion.objects.filter(fecha_operacion__year=año_seleccionado, fecha_operacion__month=mes_seleccionado)
     ingresos_totales = transacciones_mes.filter(importe__gt=0).aggregate(Sum('importe'))['importe__sum'] or 0
     gastos_totales = transacciones_mes.filter(importe__lt=0).aggregate(Sum('importe'))['importe__sum'] or 0
