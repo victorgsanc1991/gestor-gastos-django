@@ -17,55 +17,68 @@ def subir_movimientos(request):
         if not csv_file.name.endswith('.csv'): messages.error(request, "El archivo debe tener formato .csv"); return redirect('subir')
         try:
             # Transaccion.objects.all().delete() # LÍNEA COMENTADA: Ya no se borran los datos antiguos.
-
             data_set = csv_file.read().decode('utf-8'); io_string = io.StringIO(data_set)
             for _ in range(5): next(io_string)
             reader = csv.reader(io_string, delimiter=';'); next(reader)
-            
             reglas = Regla.objects.all()
             num_transacciones_creadas = 0
             num_transacciones_ignoradas = 0
-
             for row in reader:
                 if len(row) < 9: continue
                 fecha_str, concepto, importe_str = row[2], row[4], row[6]
                 if not fecha_str or not concepto or not importe_str: continue
-                
                 fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
                 importe_obj = float(str(importe_str).replace('.', '').replace(',', '.'))
                 if isinstance(concepto, str) and '\\' in concepto: concepto = concepto.split('\\')[0].strip()
-
-                # LÓGICA ANTI-DUPLICADOS: Comprobamos si ya existe una transacción idéntica
                 if Transaccion.objects.filter(fecha_operacion=fecha_obj, concepto_original=str(concepto), importe=importe_obj).exists():
                     num_transacciones_ignoradas += 1
-                    continue # Si existe, la saltamos
-
+                    continue
                 categoria_asignada = None
                 for regla in reglas:
                     if regla.palabra_clave.lower() in str(concepto).lower(): categoria_asignada = regla.categoria_destino; break
-                
                 Transaccion.objects.create(fecha_operacion=fecha_obj, concepto_original=str(concepto), importe=importe_obj, categoria=categoria_asignada)
                 num_transacciones_creadas += 1
-
-            # MENSAJE DE ÉXITO MEJORADO
             messages.success(request, f"¡Éxito! Se han importado {num_transacciones_creadas} nuevas transacciones. Se ignoraron {num_transacciones_ignoradas} duplicadas.")
-
         except Exception as e: messages.error(request, f"Ocurrió un error al procesar el archivo: {e}")
         return redirect('subir')
     return render(request, 'core/subir.html')
 
 @login_required
 def listar_transacciones(request):
+    # Empezamos con todas las transacciones, ordenadas por fecha
     transacciones = Transaccion.objects.all().order_by('-fecha_operacion', '-id')
-    categoria_id_filtro = request.GET.get('categoria'); mes_filtro = request.GET.get('mes'); año_filtro = request.GET.get('año'); tipo_filtro = request.GET.get('tipo')
+    
+    # Obtenemos los valores de los filtros del formulario (si se enviaron)
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    concepto_query = request.GET.get('concepto')
+    categoria_id_filtro = request.GET.get('categoria')
+
+    if fecha_inicio:
+        transacciones = transacciones.filter(fecha_operacion__gte=fecha_inicio)
+    if fecha_fin:
+        transacciones = transacciones.filter(fecha_operacion__lte=fecha_fin)
+    if concepto_query:
+        transacciones = transacciones.filter(concepto_original__icontains=concepto_query)
     if categoria_id_filtro:
-        if categoria_id_filtro == '0': transacciones = transacciones.filter(categoria__isnull=True)
-        else: transacciones = transacciones.filter(categoria__id=categoria_id_filtro)
-    if mes_filtro and año_filtro: transacciones = transacciones.filter(fecha_operacion__month=mes_filtro, fecha_operacion__year=año_filtro)
-    if tipo_filtro == 'gastos': transacciones = transacciones.filter(importe__lt=0)
-    if tipo_filtro == 'ingresos': transacciones = transacciones.filter(importe__gt=0)
+        if categoria_id_filtro == '0':
+            transacciones = transacciones.filter(categoria__isnull=True)
+        else:
+            transacciones = transacciones.filter(categoria__id=categoria_id_filtro)
+            
     categorias = Categoria.objects.all()
-    contexto = { 'transacciones': transacciones, 'categorias': categorias, }
+    
+    contexto = { 
+        'transacciones': transacciones, 
+        'categorias': categorias,
+        # Pasamos los valores de los filtros de vuelta a la plantilla para que los campos "recuerden" la búsqueda
+        'valores_filtro': {
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'concepto': concepto_query,
+            'categoria': categoria_id_filtro,
+        }
+    }
     return render(request, 'core/listar.html', contexto)
 
 @login_required

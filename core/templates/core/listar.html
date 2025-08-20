@@ -4,6 +4,7 @@
 
 {% block extra_styles %}
 <style>
+    /* Estilos generales que ya tenías */
     table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
     th, td { border-bottom: 1px solid #ddd; padding: 12px; text-align: left; }
     th { background-color: #f8f9fa; }
@@ -13,18 +14,99 @@
     .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; }
     .btn-delete { background-color: #dc3545; }
     .btn-delete-multiple { background-color: #c82333; font-weight: bold; margin-bottom: 10px; }
+
+    /* === NUEVOS ESTILOS PARA EL FORMULARIO DE FILTROS === */
+    .filter-form {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end; /* Alinea los elementos al final para que los botones queden bien */
+    }
+    .filter-form .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    .filter-form label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: #495057;
+    }
+    .filter-form input, .filter-form select {
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .filter-form button {
+        padding: 10px;
+        font-size: 16px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        height: 40px; /* Para alinear verticalmente con los inputs */
+    }
 </style>
 {% endblock %}
 
 {% block content %}
     <h1>Listado de Movimientos</h1>
+
+    <!-- === NUEVO FORMULARIO DE FILTROS === -->
+    <form class="filter-form" method="get" action="{% url 'listar' %}">
+        <div class="form-group">
+            <label for="fecha_inicio">Desde:</label>
+            <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ valores_filtro.fecha_inicio|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label for="fecha_fin">Hasta:</label>
+            <input type="date" name="fecha_fin" id="fecha_fin" value="{{ valores_filtro.fecha_fin|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label for="concepto">Concepto contiene:</label>
+            <input type="text" name="concepto" id="concepto" placeholder="Ej: Mercadona, Nómina..." value="{{ valores_filtro.concepto|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label for="categoria">Categoría:</label>
+            <select name="categoria" id="categoria">
+                <option value="">Todas</option>
+                <option value="0" {% if valores_filtro.categoria == '0' %}selected{% endif %}>--- Sin Categoría ---</option>
+                {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if valores_filtro.categoria == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="submit">Filtrar</button>
+        </div>
+    </form>
+
+    <!-- TABLA DE TRANSACCIONES (código que ya tenías) -->
     <form action="{% url 'eliminar_multiples' %}" method="post" id="multiple-delete-form">
         {% csrf_token %}
         <button type="submit" class="btn btn-delete-multiple" onclick="return confirm('¿Estás seguro de que quieres eliminar TODAS las transacciones seleccionadas?');">
             Eliminar Seleccionadas
         </button>
         <table>
-            <thead><tr><th><input type="checkbox" id="select-all"></th><th>Fecha</th><th>Concepto</th><th>Importe</th><th style="width: 25%;">Categoría</th><th>Acciones</th></tr></thead>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all"></th>
+                    <th>Fecha</th>
+                    <th>Concepto</th>
+                    <th>Importe</th>
+                    <th style="width: 25%;">Categoría</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
             <tbody>
                 {% for transaccion in transacciones %}
                     <tr>
@@ -50,7 +132,7 @@
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="6" style="text-align: center; padding: 20px;">No hay transacciones para mostrar.</td></tr>
+                    <tr><td colspan="6" style="text-align: center; padding: 20px;">No se encontraron transacciones con los filtros aplicados.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
