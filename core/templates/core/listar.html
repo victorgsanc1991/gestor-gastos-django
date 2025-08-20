@@ -15,7 +15,7 @@
     .btn-delete { background-color: #dc3545; }
     .btn-delete-multiple { background-color: #c82333; font-weight: bold; margin-bottom: 10px; }
 
-    /* === NUEVOS ESTILOS PARA EL FORMULARIO DE FILTROS === */
+    /* Estilos para el formulario de filtros */
     .filter-form {
         background-color: #f8f9fa;
         padding: 20px;
@@ -25,41 +25,19 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 15px;
-        align-items: end; /* Alinea los elementos al final para que los botones queden bien */
+        align-items: end;
     }
-    .filter-form .form-group {
-        display: flex;
-        flex-direction: column;
-    }
-    .filter-form label {
-        font-weight: bold;
-        margin-bottom: 5px;
-        font-size: 14px;
-        color: #495057;
-    }
-    .filter-form input, .filter-form select {
-        padding: 8px;
-        font-size: 16px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    .filter-form button {
-        padding: 10px;
-        font-size: 16px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        height: 40px; /* Para alinear verticalmente con los inputs */
-    }
+    .filter-form .form-group { display: flex; flex-direction: column; }
+    .filter-form label { font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #495057; }
+    .filter-form input, .filter-form select { padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+    .filter-form button { padding: 10px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; height: 40px; }
 </style>
 {% endblock %}
 
 {% block content %}
     <h1>Listado de Movimientos</h1>
 
-    <!-- === NUEVO FORMULARIO DE FILTROS === -->
+    <!-- FORMULARIO DE FILTROS -->
     <form class="filter-form" method="get" action="{% url 'listar' %}">
         <div class="form-group">
             <label for="fecha_inicio">Desde:</label>
@@ -79,9 +57,7 @@
                 <option value="">Todas</option>
                 <option value="0" {% if valores_filtro.categoria == '0' %}selected{% endif %}>--- Sin Categoría ---</option>
                 {% for cat in categorias %}
-                    <option value="{{ cat.id }}" {% if valores_filtro.categoria == cat.id|stringformat:"s" %}selected{% endif %}>
-                        {{ cat.nombre }}
-                    </option>
+                    <option value="{{ cat.id }}" {% if valores_filtro.categoria == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -90,57 +66,67 @@
         </div>
     </form>
 
-    <!-- TABLA DE TRANSACCIONES (código que ya tenías) -->
+    <!-- === CAMBIO ESTRUCTURAL IMPORTANTE === -->
+    <!-- El formulario de borrado múltiple ahora solo contiene el botón -->
     <form action="{% url 'eliminar_multiples' %}" method="post" id="multiple-delete-form">
         {% csrf_token %}
         <button type="submit" class="btn btn-delete-multiple" onclick="return confirm('¿Estás seguro de que quieres eliminar TODAS las transacciones seleccionadas?');">
             Eliminar Seleccionadas
         </button>
-        <table>
-            <thead>
-                <tr>
-                    <th><input type="checkbox" id="select-all"></th>
-                    <th>Fecha</th>
-                    <th>Concepto</th>
-                    <th>Importe</th>
-                    <th style="width: 25%;">Categoría</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for transaccion in transacciones %}
-                    <tr>
-                        <td><input type="checkbox" name="transaccion_ids" value="{{ transaccion.id }}" class="transaction-checkbox"></td>
-                        <td>{{ transaccion.fecha_operacion|date:"d/m/Y" }}</td>
-                        <td>{{ transaccion.concepto_original }}</td>
-                        {% if transaccion.importe < 0 %}<td class="gasto">{{ transaccion.importe }} €</td>{% else %}<td class="ingreso">+{{ transaccion.importe }} €</td>{% endif %}
-                        <td>
-                            <form action="{% url 'actualizar_categoria' %}" method="post" style="margin: 0;">
-                                {% csrf_token %}
-                                <input type="hidden" name="transaccion_id" value="{{ transaccion.id }}">
-                                <select name="categoria_id" onchange="this.form.submit()" style="width: 100%; padding: 5px; border-radius: 4px;">
-                                    <option value="" {% if not transaccion.categoria %}selected{% endif %}>--- Sin categoría ---</option>
-                                    {% for cat in categorias %}<option value="{{ cat.id }}" {% if transaccion.categoria.id == cat.id %}selected{% endif %}>{{ cat.nombre }}</option>{% endfor %}
-                                </select>
-                            </form>
-                        </td>
-                        <td>
-                            <form action="{% url 'eliminar_transaccion' transaccion.id %}" method="post" style="display: inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-delete" onclick="return confirm('¿Estás seguro de que quieres eliminar esta transacción?');">Eliminar</button>
-                            </form>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr><td colspan="6" style="text-align: center; padding: 20px;">No se encontraron transacciones con los filtros aplicados.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </form>
+
+    <!-- La tabla ahora está fuera del formulario principal -->
+    <table>
+        <thead>
+            <tr>
+                <!-- El checkbox de la cabecera ahora solo tiene una función visual con JavaScript -->
+                <th><input type="checkbox" id="select-all"></th>
+                <th>Fecha</th>
+                <th>Concepto</th>
+                <th>Importe</th>
+                <th style="width: 25%;">Categoría</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaccion in transacciones %}
+                <tr>
+                    <td>
+                        <!-- El atributo 'form' vincula este checkbox al formulario de borrado por su 'id' -->
+                        <input type="checkbox" name="transaccion_ids" value="{{ transaccion.id }}" class="transaction-checkbox" form="multiple-delete-form">
+                    </td>
+                    <td>{{ transaccion.fecha_operacion|date:"d/m/Y" }}</td>
+                    <td>{{ transaccion.concepto_original }}</td>
+                    {% if transaccion.importe < 0 %}<td class="gasto">{{ transaccion.importe }} €</td>{% else %}<td class="ingreso">+{{ transaccion.importe }} €</td>{% endif %}
+                    <td>
+                        <!-- Este formulario es independiente y no causa problemas de anidamiento -->
+                        <form action="{% url 'actualizar_categoria' %}" method="post" style="margin: 0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="transaccion_id" value="{{ transaccion.id }}">
+                            <select name="categoria_id" onchange="this.form.submit()" style="width: 100%; padding: 5px; border-radius: 4px;">
+                                <option value="" {% if not transaccion.categoria %}selected{% endif %}>--- Sin categoría ---</option>
+                                {% for cat in categorias %}<option value="{{ cat.id }}" {% if transaccion.categoria.id == cat.id %}selected{% endif %}>{{ cat.nombre }}</option>{% endfor %}
+                            </select>
+                        </form>
+                    </td>
+                    <td>
+                        <!-- Este formulario también es independiente -->
+                        <form action="{% url 'eliminar_transaccion' transaccion.id %}" method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-delete" onclick="return confirm('¿Estás seguro de que quieres eliminar esta transacción?');">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" style="text-align: center; padding: 20px;">No se encontraron transacciones con los filtros aplicados.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+    // Este script ahora vincula el checkbox "select-all" con los checkboxes del formulario
     document.getElementById('select-all').addEventListener('change', function(e) {
         document.querySelectorAll('.transaction-checkbox').forEach(function(checkbox) {
             checkbox.checked = e.target.checked;
