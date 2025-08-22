@@ -18,13 +18,18 @@
 </head>
 <body>
     <div class="page-container">
-        <nav>
-            <a href="{% url 'dashboard' %}">Dashboard</a>
-            <a href="{% url 'listar' %}">Ver Transacciones</a>
-            <a href="{% url 'subir' %}">Subir Archivo</a>
-            <a href="{% url 'admin:index' %}" target="_blank">Admin</a>
-            <a href="{% url 'admin:logout' %}" style="color: #dc3545;">Salir</a>
-        </nav>
+        {% if request.session.autenticado %}
+            <nav>
+                <a href="{% url 'dashboard' %}">Dashboard</a>
+                <a href="{% url 'listar' %}">Ver Transacciones</a>
+                <a href="{% url 'subir' %}">Subir Archivo</a>
+                <a href="/admin/" target="_blank">Admin</a> <!-- Usamos la URL directa para el admin -->
+                <!-- === ¡AQUÍ ESTÁ LA CORRECCIÓN! === -->
+                <!-- Apunta a nuestra URL 'logout' que activa la vista 'logout_view' -->
+                <a href="{% url 'logout' %}" style="color: #dc3545;">Salir</a>
+            </nav>
+        {% endif %}
+        
         <div class="content">
             {% if messages %}
                 <ul class="messages">
