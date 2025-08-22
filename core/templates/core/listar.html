@@ -17,57 +17,37 @@
 
     /* Estilos para el formulario de filtros */
     .filter-form {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        display: grid;
+        background-color: #f8f9fa; padding: 20px; border: 1px solid #dee2e6;
+        border-radius: 8px; margin-bottom: 20px; display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        align-items: end;
+        gap: 15px; align-items: end;
     }
     .filter-form .form-group { display: flex; flex-direction: column; }
     .filter-form label { font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #495057; }
     .filter-form input, .filter-form select { padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
     .filter-form button { padding: 10px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; height: 40px; }
+
+    /* Estilo para el feedback visual de guardado */
+    .fila-guardada {
+        background-color: #d4edda !important;
+        transition: background-color 0.5s ease-out;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
     <h1>Listado de Movimientos</h1>
 
-    <!-- FORMULARIO DE FILTROS -->
+    <!-- FORMULARIO DE FILTROS (Sin cambios) -->
     <form class="filter-form" method="get" action="{% url 'listar' %}">
-        <div class="form-group">
-            <label for="fecha_inicio">Desde:</label>
-            <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ valores_filtro.fecha_inicio|default:'' }}">
-        </div>
-        <div class="form-group">
-            <label for="fecha_fin">Hasta:</label>
-            <input type="date" name="fecha_fin" id="fecha_fin" value="{{ valores_filtro.fecha_fin|default:'' }}">
-        </div>
-        <div class="form-group">
-            <label for="concepto">Concepto contiene:</label>
-            <input type="text" name="concepto" id="concepto" placeholder="Ej: Mercadona, Nómina..." value="{{ valores_filtro.concepto|default:'' }}">
-        </div>
-        <div class="form-group">
-            <label for="categoria">Categoría:</label>
-            <select name="categoria" id="categoria">
-                <option value="">Todas</option>
-                <option value="0" {% if valores_filtro.categoria == '0' %}selected{% endif %}>--- Sin Categoría ---</option>
-                {% for cat in categorias %}
-                    <option value="{{ cat.id }}" {% if valores_filtro.categoria == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <button type="submit">Filtrar</button>
-        </div>
+        <div class="form-group"><label for="fecha_inicio">Desde:</label><input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ valores_filtro.fecha_inicio|default:'' }}"></div>
+        <div class="form-group"><label for="fecha_fin">Hasta:</label><input type="date" name="fecha_fin" id="fecha_fin" value="{{ valores_filtro.fecha_fin|default:'' }}"></div>
+        <div class="form-group"><label for="concepto">Concepto contiene:</label><input type="text" name="concepto" id="concepto" placeholder="Ej: Mercadona, Nómina..." value="{{ valores_filtro.concepto|default:'' }}"></div>
+        <div class="form-group"><label for="categoria">Categoría:</label><select name="categoria" id="categoria"><option value="">Todas</option><option value="0" {% if valores_filtro.categoria == '0' %}selected{% endif %}>--- Sin Categoría ---</option>{% for cat in categorias %}<option value="{{ cat.id }}" {% if valores_filtro.categoria == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>{% endfor %}</select></div>
+        <div class="form-group"><button type="submit">Filtrar</button></div>
     </form>
 
-    <!-- === CAMBIO ESTRUCTURAL IMPORTANTE === -->
-    <!-- El formulario de borrado múltiple ahora solo contiene el botón -->
+    <!-- FORMULARIO DE BORRADO MÚLTIPLE (Sin cambios en su estructura) -->
     <form action="{% url 'eliminar_multiples' %}" method="post" id="multiple-delete-form">
         {% csrf_token %}
         <button type="submit" class="btn btn-delete-multiple" onclick="return confirm('¿Estás seguro de que quieres eliminar TODAS las transacciones seleccionadas?');">
@@ -75,42 +55,26 @@
         </button>
     </form>
 
-    <!-- La tabla ahora está fuera del formulario principal -->
+    <!-- TABLA DE TRANSACCIONES (Con cambios importantes) -->
     <table>
-        <thead>
-            <tr>
-                <!-- El checkbox de la cabecera ahora solo tiene una función visual con JavaScript -->
-                <th><input type="checkbox" id="select-all"></th>
-                <th>Fecha</th>
-                <th>Concepto</th>
-                <th>Importe</th>
-                <th style="width: 25%;">Categoría</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
+        <thead><tr><th><input type="checkbox" id="select-all"></th><th>Fecha</th><th>Concepto</th><th>Importe</th><th style="width: 25%;">Categoría</th><th>Acciones</th></tr></thead>
         <tbody>
             {% for transaccion in transacciones %}
-                <tr>
-                    <td>
-                        <!-- El atributo 'form' vincula este checkbox al formulario de borrado por su 'id' -->
-                        <input type="checkbox" name="transaccion_ids" value="{{ transaccion.id }}" class="transaction-checkbox" form="multiple-delete-form">
-                    </td>
+                <tr id="transaccion-{{ transaccion.id }}"> <!-- Añadimos un ID a cada fila -->
+                    <td><input type="checkbox" name="transaccion_ids" value="{{ transaccion.id }}" class="transaction-checkbox" form="multiple-delete-form"></td>
                     <td>{{ transaccion.fecha_operacion|date:"d/m/Y" }}</td>
                     <td>{{ transaccion.concepto_original }}</td>
                     {% if transaccion.importe < 0 %}<td class="gasto">{{ transaccion.importe }} €</td>{% else %}<td class="ingreso">+{{ transaccion.importe }} €</td>{% endif %}
                     <td>
-                        <!-- Este formulario es independiente y no causa problemas de anidamiento -->
-                        <form action="{% url 'actualizar_categoria' %}" method="post" style="margin: 0;">
-                            {% csrf_token %}
-                            <input type="hidden" name="transaccion_id" value="{{ transaccion.id }}">
-                            <select name="categoria_id" onchange="this.form.submit()" style="width: 100%; padding: 5px; border-radius: 4px;">
-                                <option value="" {% if not transaccion.categoria %}selected{% endif %}>--- Sin categoría ---</option>
-                                {% for cat in categorias %}<option value="{{ cat.id }}" {% if transaccion.categoria.id == cat.id %}selected{% endif %}>{{ cat.nombre }}</option>{% endfor %}
-                            </select>
-                        </form>
+                        <!-- === CAMBIO IMPORTANTE: YA NO ES UN FORMULARIO === -->
+                        <!-- Usamos atributos 'data-*' para guardar la información necesaria -->
+                        <select class="categoria-select" data-transaccion-id="{{ transaccion.id }}" style="width: 100%; padding: 5px; border-radius: 4px;">
+                            <option value="" {% if not transaccion.categoria %}selected{% endif %}>--- Sin categoría ---</option>
+                            {% for cat in categorias %}<option value="{{ cat.id }}" {% if transaccion.categoria.id == cat.id %}selected{% endif %}>{{ cat.nombre }}</option>{% endfor %}
+                        </select>
                     </td>
                     <td>
-                        <!-- Este formulario también es independiente -->
+                        <!-- El formulario de borrado individual se queda igual -->
                         <form action="{% url 'eliminar_transaccion' transaccion.id %}" method="post" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-delete" onclick="return confirm('¿Estás seguro de que quieres eliminar esta transacción?');">Eliminar</button>
@@ -126,10 +90,52 @@
 
 {% block extra_scripts %}
 <script>
-    // Este script ahora vincula el checkbox "select-all" con los checkboxes del formulario
+    // Script de "Seleccionar Todo" (sin cambios)
     document.getElementById('select-all').addEventListener('change', function(e) {
         document.querySelectorAll('.transaction-checkbox').forEach(function(checkbox) {
             checkbox.checked = e.target.checked;
+        });
+    });
+
+    // === NUEVO SCRIPT PARA ACTUALIZACIÓN ASÍNCRONA (AJAX/FETCH) ===
+    document.querySelectorAll('.categoria-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const transaccionId = this.dataset.transaccionId;
+            const categoriaId = this.value;
+            // Obtenemos el token CSRF del formulario de borrado (es el mismo para toda la página)
+            const csrfToken = document.querySelector('#multiple-delete-form [name=csrfmiddlewaretoken]').value;
+            
+            // Usamos la API Fetch para enviar los datos en segundo plano
+            fetch("{% url 'actualizar_categoria' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    'transaccion_id': transaccionId,
+                    'categoria_id': categoriaId
+                })
+            })
+            .then(response => response.json()) // Convertimos la respuesta del servidor a JSON
+            .then(data => {
+                if (data.status === 'ok') {
+                    // Si todo fue bien, damos feedback visual
+                    const fila = document.getElementById(`transaccion-${transaccionId}`);
+                    fila.classList.add('fila-guardada');
+                    // Quitamos el color de feedback después de 1.5 segundos
+                    setTimeout(() => {
+                        fila.classList.remove('fila-guardada');
+                    }, 1500);
+                } else {
+                    // Si hubo un error, lo mostramos en una alerta
+                    alert('Error al actualizar la categoría: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ha ocurrido un error de conexión.');
+            });
         });
     });
 </script>

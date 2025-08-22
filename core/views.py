@@ -8,6 +8,7 @@ from django.utils import timezone
 import json
 from django.db.models.functions import TruncMonth
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse # <-- ¡NUEVA IMPORTACIÓN!
 
 @login_required
 def subir_movimientos(request):
@@ -45,15 +46,11 @@ def subir_movimientos(request):
 
 @login_required
 def listar_transacciones(request):
-    # Empezamos con todas las transacciones, ordenadas por fecha
     transacciones = Transaccion.objects.all().order_by('-fecha_operacion', '-id')
-    
-    # Obtenemos los valores de los filtros del formulario (si se enviaron)
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     concepto_query = request.GET.get('concepto')
     categoria_id_filtro = request.GET.get('categoria')
-
     if fecha_inicio:
         transacciones = transacciones.filter(fecha_operacion__gte=fecha_inicio)
     if fecha_fin:
@@ -65,33 +62,43 @@ def listar_transacciones(request):
             transacciones = transacciones.filter(categoria__isnull=True)
         else:
             transacciones = transacciones.filter(categoria__id=categoria_id_filtro)
-            
     categorias = Categoria.objects.all()
-    
     contexto = { 
         'transacciones': transacciones, 
         'categorias': categorias,
-        # Pasamos los valores de los filtros de vuelta a la plantilla para que los campos "recuerden" la búsqueda
-        'valores_filtro': {
-            'fecha_inicio': fecha_inicio,
-            'fecha_fin': fecha_fin,
-            'concepto': concepto_query,
-            'categoria': categoria_id_filtro,
-        }
+        'valores_filtro': { 'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin, 'concepto': concepto_query, 'categoria': categoria_id_filtro, }
     }
     return render(request, 'core/listar.html', contexto)
 
 @login_required
 def actualizar_categoria(request):
+    # --- ¡FUNCIÓN MODIFICADA PARA MANEJAR AJAX! ---
     if request.method == 'POST':
-        transaccion_id = request.POST.get('transaccion_id'); categoria_id = request.POST.get('categoria_id')
         try:
+            # Leemos los datos que nos envía el JavaScript
+            data = json.loads(request.body)
+            transaccion_id = data.get('transaccion_id')
+            categoria_id = data.get('categoria_id')
+
             transaccion = Transaccion.objects.get(id=transaccion_id)
-            if categoria_id: categoria = Categoria.objects.get(id=categoria_id); transaccion.categoria = categoria
-            else: transaccion.categoria = None
+            
+            if categoria_id:
+                categoria = Categoria.objects.get(id=categoria_id)
+                transaccion.categoria = categoria
+            else:
+                transaccion.categoria = None
+            
             transaccion.save()
-        except Exception as e: messages.error(request, f'Ocurrió un error: {e}')
-    return redirect('listar')
+            
+            # Devolvemos una respuesta JSON de éxito
+            return JsonResponse({'status': 'ok', 'message': 'Categoría actualizada con éxito.'})
+            
+        except Exception as e:
+            # Si algo falla, devolvemos un error en formato JSON
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+    # Si la petición no es POST, no debería llegar aquí, pero por si acaso.
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
 @login_required
 def dashboard(request):
