@@ -13,7 +13,7 @@ RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
-# --- Nueva línea para que en local funcione sin problemas ---
+# Permite el acceso en local cuando DEBUG es True
 if DEBUG:
     ALLOWED_HOSTS.append('127.0.0.1')
     ALLOWED_HOSTS.append('localhost')
@@ -41,5 +41,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- URLs de Login y Logout ---
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/'
-# --- ¡LÍNEA AÑADIDA! ---
 LOGOUT_REDIRECT_URL = '/'
