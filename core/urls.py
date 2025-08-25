@@ -8,4 +8,7 @@ urlpatterns = [
     path('actualizar-categoria/', views.actualizar_categoria, name='actualizar_categoria'),
     path('transaccion/<int:transaccion_id>/eliminar/', views.eliminar_transaccion, name='eliminar_transaccion'),
     path('transacciones/eliminar-multiples/', views.eliminar_multiples, name='eliminar_multiples'),
+    
+    # --- ¡NUEVA RUTA AÑADIDA! ---
+    path('analisis/', views.analisis_avanzado, name='analisis'),
 ]

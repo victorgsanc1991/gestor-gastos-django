@@ -8,7 +8,7 @@ from django.utils import timezone
 import json
 from django.db.models.functions import TruncMonth
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse # <-- ¡NUEVA IMPORTACIÓN!
+from django.http import JsonResponse
 
 @login_required
 def subir_movimientos(request):
@@ -72,32 +72,21 @@ def listar_transacciones(request):
 
 @login_required
 def actualizar_categoria(request):
-    # --- ¡FUNCIÓN MODIFICADA PARA MANEJAR AJAX! ---
     if request.method == 'POST':
         try:
-            # Leemos los datos que nos envía el JavaScript
             data = json.loads(request.body)
             transaccion_id = data.get('transaccion_id')
             categoria_id = data.get('categoria_id')
-
             transaccion = Transaccion.objects.get(id=transaccion_id)
-            
             if categoria_id:
                 categoria = Categoria.objects.get(id=categoria_id)
                 transaccion.categoria = categoria
             else:
                 transaccion.categoria = None
-            
             transaccion.save()
-            
-            # Devolvemos una respuesta JSON de éxito
             return JsonResponse({'status': 'ok', 'message': 'Categoría actualizada con éxito.'})
-            
         except Exception as e:
-            # Si algo falla, devolvemos un error en formato JSON
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    
-    # Si la petición no es POST, no debería llegar aquí, pero por si acaso.
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
 @login_required
@@ -139,3 +128,17 @@ def eliminar_multiples(request):
         if not ids_a_borrar: messages.warning(request, "No has seleccionado ninguna transacción para eliminar.")
         else: Transaccion.objects.filter(id__in=ids_a_borrar).delete(); messages.success(request, f"Se han eliminado {len(ids_a_borrar)} transacciones con éxito.")
     return redirect('listar')
+
+# ==============================================================================
+# VISTA PARA LA NUEVA PÁGINA DE ANÁLISIS AVANZADO
+# ==============================================================================
+@login_required
+def analisis_avanzado(request):
+    # Por ahora, solo obtenemos las categorías para el formulario de filtros.
+    # Más adelante añadiremos aquí toda la lógica de cálculo.
+    categorias = Categoria.objects.all().order_by('nombre')
+    
+    contexto = {
+        'categorias': categorias
+    }
+    return render(request, 'core/analisis.html', contexto)
