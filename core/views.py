@@ -2,13 +2,15 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import Transaccion, Categoria, Regla
 import csv, io
-from datetime import datetime
-from django.db.models import Sum, Q
+from datetime import datetime, timedelta
+from django.db.models import Sum, Q, Count
 from django.utils import timezone
 import json
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from collections import defaultdict
+import random
 
 @login_required
 def subir_movimientos(request):
@@ -17,13 +19,10 @@ def subir_movimientos(request):
         csv_file = request.FILES['csv_file']
         if not csv_file.name.endswith('.csv'): messages.error(request, "El archivo debe tener formato .csv"); return redirect('subir')
         try:
-            # Transaccion.objects.all().delete() # LÍNEA COMENTADA: Ya no se borran los datos antiguos.
             data_set = csv_file.read().decode('utf-8'); io_string = io.StringIO(data_set)
             for _ in range(5): next(io_string)
             reader = csv.reader(io_string, delimiter=';'); next(reader)
-            reglas = Regla.objects.all()
-            num_transacciones_creadas = 0
-            num_transacciones_ignoradas = 0
+            reglas = Regla.objects.all(); num_transacciones_creadas = 0; num_transacciones_ignoradas = 0
             for row in reader:
                 if len(row) < 9: continue
                 fecha_str, concepto, importe_str = row[2], row[4], row[6]
@@ -47,46 +46,28 @@ def subir_movimientos(request):
 @login_required
 def listar_transacciones(request):
     transacciones = Transaccion.objects.all().order_by('-fecha_operacion', '-id')
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    concepto_query = request.GET.get('concepto')
-    categoria_id_filtro = request.GET.get('categoria')
-    if fecha_inicio:
-        transacciones = transacciones.filter(fecha_operacion__gte=fecha_inicio)
-    if fecha_fin:
-        transacciones = transacciones.filter(fecha_operacion__lte=fecha_fin)
-    if concepto_query:
-        transacciones = transacciones.filter(concepto_original__icontains=concepto_query)
+    fecha_inicio = request.GET.get('fecha_inicio'); fecha_fin = request.GET.get('fecha_fin'); concepto_query = request.GET.get('concepto'); categoria_id_filtro = request.GET.get('categoria')
+    if fecha_inicio: transacciones = transacciones.filter(fecha_operacion__gte=fecha_inicio)
+    if fecha_fin: transacciones = transacciones.filter(fecha_operacion__lte=fecha_fin)
+    if concepto_query: transacciones = transacciones.filter(concepto_original__icontains=concepto_query)
     if categoria_id_filtro:
-        if categoria_id_filtro == '0':
-            transacciones = transacciones.filter(categoria__isnull=True)
-        else:
-            transacciones = transacciones.filter(categoria__id=categoria_id_filtro)
+        if categoria_id_filtro == '0': transacciones = transacciones.filter(categoria__isnull=True)
+        else: transacciones = transacciones.filter(categoria__id=categoria_id_filtro)
     categorias = Categoria.objects.all()
-    contexto = { 
-        'transacciones': transacciones, 
-        'categorias': categorias,
-        'valores_filtro': { 'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin, 'concepto': concepto_query, 'categoria': categoria_id_filtro, }
-    }
+    contexto = {'transacciones': transacciones, 'categorias': categorias, 'valores_filtro': {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin, 'concepto': concepto_query, 'categoria': categoria_id_filtro,}}
     return render(request, 'core/listar.html', contexto)
 
 @login_required
 def actualizar_categoria(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            transaccion_id = data.get('transaccion_id')
-            categoria_id = data.get('categoria_id')
+            data = json.loads(request.body); transaccion_id = data.get('transaccion_id'); categoria_id = data.get('categoria_id')
             transaccion = Transaccion.objects.get(id=transaccion_id)
-            if categoria_id:
-                categoria = Categoria.objects.get(id=categoria_id)
-                transaccion.categoria = categoria
-            else:
-                transaccion.categoria = None
+            if categoria_id: categoria = Categoria.objects.get(id=categoria_id); transaccion.categoria = categoria
+            else: transaccion.categoria = None
             transaccion.save()
-            return JsonResponse({'status': 'ok', 'message': 'Categoría actualizada con éxito.'})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            return JsonResponse({'status': 'ok', 'message': 'Categoría actualizada.'})
+        except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
 
 @login_required
@@ -129,16 +110,50 @@ def eliminar_multiples(request):
         else: Transaccion.objects.filter(id__in=ids_a_borrar).delete(); messages.success(request, f"Se han eliminado {len(ids_a_borrar)} transacciones con éxito.")
     return redirect('listar')
 
-# ==============================================================================
-# VISTA PARA LA NUEVA PÁGINA DE ANÁLISIS AVANZADO
-# ==============================================================================
 @login_required
 def analisis_avanzado(request):
-    # Por ahora, solo obtenemos las categorías para el formulario de filtros.
-    # Más adelante añadiremos aquí toda la lógica de cálculo.
-    categorias = Categoria.objects.all().order_by('nombre')
-    
+    categorias_disponibles = Categoria.objects.all().order_by('nombre')
+    fecha_inicio_str = request.GET.get('fecha_inicio')
+    fecha_fin_str = request.GET.get('fecha_fin')
+    tipo_movimiento = request.GET.get('tipo_movimiento', 'gastos')
+    agrupacion = request.GET.get('agrupacion', 'mes')
+    categorias_seleccionadas_ids = request.GET.getlist('categorias')
     contexto = {
-        'categorias': categorias
+        'categorias_disponibles': categorias_disponibles,
+        'valores_filtro': request.GET,
+        'chart_data': None
     }
+    if fecha_inicio_str and fecha_fin_str:
+        transacciones = Transaccion.objects.filter(fecha_operacion__range=[fecha_inicio_str, fecha_fin_str])
+        if tipo_movimiento == 'gastos':
+            transacciones = transacciones.filter(importe__lt=0)
+        elif tipo_movimiento == 'ingresos':
+            transacciones = transacciones.filter(importe__gt=0)
+        if agrupacion == 'dia':
+            trunc_func = TruncDay('fecha_operacion')
+            date_format = '%d/%m/%Y'
+        elif agrupacion == 'semana':
+            trunc_func = TruncWeek('fecha_operacion')
+            date_format = 'Sem %W, %Y'
+        else: # mes
+            trunc_func = TruncMonth('fecha_operacion')
+            date_format = '%b %Y'
+        if not categorias_seleccionadas_ids:
+            resultado = (transacciones.annotate(periodo=trunc_func).values('periodo').annotate(total=Sum('importe')).order_by('periodo'))
+            labels = [p['periodo'].strftime(date_format) for p in resultado]
+            datasets = [{'label': 'Total', 'data': [float(abs(p['total'])) for p in resultado], 'borderColor': 'rgba(75, 192, 192, 1)', 'backgroundColor': 'rgba(75, 192, 192, 0.2)', 'fill': True}]
+        else:
+            transacciones = transacciones.filter(categoria__id__in=categorias_seleccionadas_ids)
+            resultado = (transacciones.annotate(periodo=trunc_func).values('periodo', 'categoria__nombre').annotate(total=Sum('importe')).order_by('periodo'))
+            periodos = sorted(list(set([p['periodo'] for p in resultado])))
+            labels = [p.strftime(date_format) for p in periodos]
+            datos_por_categoria = defaultdict(lambda: [0] * len(periodos))
+            for r in resultado:
+                idx = periodos.index(r['periodo'])
+                datos_por_categoria[r['categoria__nombre']][idx] = float(abs(r['total']))
+            datasets = []
+            for nombre_cat, datos in datos_por_categoria.items():
+                r, g, b = random.randint(0,255), random.randint(0,255), random.randint(0,255)
+                datasets.append({'label': nombre_cat, 'data': datos, 'borderColor': f'rgba({r}, {g}, {b}, 1)', 'backgroundColor': f'rgba({r}, {g}, {b}, 0.2)', 'fill': True})
+        contexto['chart_data'] = json.dumps({'labels': labels, 'datasets': datasets})
     return render(request, 'core/analisis.html', contexto)

@@ -16,6 +16,7 @@
     .filter-form button { padding: 10px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; height: 40px; }
     .category-list { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 4px; }
     .category-list label { display: block; font-weight: normal; }
+    .chart-container { margin-top: 30px; }
 </style>
 {% endblock %}
 
@@ -25,34 +26,34 @@
     <form class="filter-form" method="get" action="{% url 'analisis' %}">
         <div class="form-group">
             <label for="fecha_inicio">Desde:</label>
-            <input type="date" name="fecha_inicio" id="fecha_inicio">
+            <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ valores_filtro.fecha_inicio|default:'' }}" required>
         </div>
         <div class="form-group">
             <label for="fecha_fin">Hasta:</label>
-            <input type="date" name="fecha_fin" id="fecha_fin">
+            <input type="date" name="fecha_fin" id="fecha_fin" value="{{ valores_filtro.fecha_fin|default:'' }}" required>
         </div>
         <div class="form-group">
             <label for="tipo_movimiento">Tipo de Movimiento:</label>
             <select name="tipo_movimiento" id="tipo_movimiento">
-                <option value="gastos">Solo Gastos</option>
-                <option value="ingresos">Solo Ingresos</option>
-                <option value="ambos">Ambos</option>
+                <option value="gastos" {% if valores_filtro.tipo_movimiento == 'gastos' %}selected{% endif %}>Solo Gastos</option>
+                <option value="ingresos" {% if valores_filtro.tipo_movimiento == 'ingresos' %}selected{% endif %}>Solo Ingresos</option>
+                <option value="ambos" {% if valores_filtro.tipo_movimiento == 'ambos' %}selected{% endif %}>Ambos</option>
             </select>
         </div>
         <div class="form-group">
             <label for="agrupacion">Agrupar por:</label>
             <select name="agrupacion" id="agrupacion">
-                <option value="mes">Mes</option>
-                <option value="semana">Semana</option>
-                <option value="dia">Día</option>
+                <option value="mes" {% if valores_filtro.agrupacion == 'mes' %}selected{% endif %}>Mes</option>
+                <option value="semana" {% if valores_filtro.agrupacion == 'semana' %}selected{% endif %}>Semana</option>
+                <option value="dia" {% if valores_filtro.agrupacion == 'dia' %}selected{% endif %}>Día</option>
             </select>
         </div>
         <div class="form-group" style="grid-column: span 2;">
-            <label>Categorías:</label>
+            <label>Categorías (opcional, si no se marca ninguna se muestra el total):</label>
             <div class="category-list">
-                {% for cat in categorias %}
+                {% for cat in categorias_disponibles %}
                 <label>
-                    <input type="checkbox" name="categorias" value="{{ cat.id }}"> {{ cat.nombre }}
+                    <input type="checkbox" name="categorias" value="{{ cat.id }}" {% if cat.id|stringformat:"s" in valores_filtro.categorias %}checked{% endif %}> {{ cat.nombre }}
                 </label>
                 {% endfor %}
             </div>
@@ -62,9 +63,54 @@
         </div>
     </form>
 
-    <!-- Aquí irán los gráficos y la tabla de resultados en el futuro -->
     <div id="resultados-analisis">
-        <p>Selecciona los filtros y haz clic en "Generar Análisis" para ver los resultados.</p>
+        {% if chart_data %}
+            <div class="chart-container">
+                <canvas id="analisisChart"></canvas>
+            </div>
+        {% elif valores_filtro.fecha_inicio and valores_filtro.fecha_fin %}
+             <p>No se encontraron datos para los filtros seleccionados.</p>
+        {% else %}
+            <p>Selecciona un rango de fechas y haz clic en "Generar Análisis" para ver los resultados.</p>
+        {% endif %}
     </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
+    {% if chart_data %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = document.getElementById('analisisChart').getContext('2d');
+            
+            // Obtenemos los datos completos del contexto de Django
+            const chartData = JSON.parse('{{ chart_data|escapejs }}');
+            
+            // === SCRIPT ACTUALIZADO PARA MÚLTIPLES LÍNEAS ===
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    // 'datasets' ahora es un array de objetos que viene directamente del backend
+                    datasets: chartData.datasets 
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            // La leyenda solo se muestra si hay más de una línea de datos
+                            display: chartData.datasets.length > 1
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+    {% endif %}
 {% endblock %}
